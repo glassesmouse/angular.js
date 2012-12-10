@@ -13,7 +13,7 @@ var util = require('util');
 
 
 var MAX_LENGTH = 70;
-var PATTERN = /^(\w*)(\(([\w\$\.]*)\))?\: (.*)$/;
+var PATTERN = /^(\w*)(\(([\w\$\.\-\*/]*)\))?\: (.*)$/;
 var IGNORED = /^WIP\:/;
 var TYPES = {
   feat: true,
@@ -22,7 +22,8 @@ var TYPES = {
   style: true,
   refactor: true,
   test: true,
-  chore: true
+  chore: true,
+  revert: true
 };
 
 

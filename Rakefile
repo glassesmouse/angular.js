@@ -40,6 +40,7 @@ desc 'Clean Generated Files'
 task :clean do
   FileUtils.rm_r(BUILD_DIR, :force => true)
   FileUtils.mkdir(BUILD_DIR)
+  FileUtils.rm_r('test_out', :force => true)
 end
 
 
@@ -53,25 +54,6 @@ task :concat_scenario => :init do
       files['angularScenario'],
       'src/ngScenario/angular.suffix',
   ], gen_css('css/angular.css') + "\n" + gen_css('css/angular-scenario.css'))
-end
-
-
-desc 'Concat JSTD Scenario Adapter'
-task :concat_jstd_scenario_adapter => :init do
-
-  concat_file('jstd-scenario-adapter.js', [
-      'src/ngScenario/jstd-scenario-adapter/angular.prefix',
-      'src/ngScenario/jstd-scenario-adapter/Adapter.js',
-      'src/ngScenario/jstd-scenario-adapter/angular.suffix',
-  ])
-
-  # TODO(vojta) use jstd configuration when implemented
-  # (instead of including jstd-adapter-config.js)
-  File.open(path_to('jstd-scenario-adapter-config.js'), 'w') do |f|
-    f.write("/**\r\n" +
-            " * Configuration for jstd scenario adapter \n */\n" +
-            "var jstdScenarioAdapter = {\n  relativeUrlPrefix: '/build/docs/'\n};\n")
-  end
 end
 
 
@@ -114,7 +96,7 @@ end
 
 
 desc 'Minify JavaScript'
-task :minify => [:init, :concat, :concat_scenario, :concat_jstd_scenario_adapter] do
+task :minify => [:init, :concat, :concat_scenario] do
   [ 'angular.js',
     'angular-cookies.js',
     'angular-loader.js',
@@ -123,8 +105,10 @@ task :minify => [:init, :concat, :concat_scenario, :concat_jstd_scenario_adapter
     'angular-bootstrap.js',
     'angular-bootstrap-prettify.js'
   ].each do |file|
-    closure_compile(file)
+    fork { closure_compile(file) }
   end
+
+  Process.waitall
 end
 
 
@@ -172,7 +156,7 @@ end
 
 desc 'Start development webserver'
 task :webserver, :port do |t, args|
-  system "node lib/nodeserver/server.js #{args[:port]}"
+  exec "node lib/nodeserver/server.js #{args[:port]}"
 end
 
 
@@ -288,7 +272,10 @@ def closure_compile(filename)
 
   min_path = path_to(filename.gsub(/\.js$/, '.min.js'))
 
-  %x(java -jar lib/closure-compiler/compiler.jar \
+  %x(java \
+        -client \
+        -d32 \
+        -jar lib/closure-compiler/compiler.jar \
         --compilation_level SIMPLE_OPTIMIZATIONS \
         --language_in ECMASCRIPT5_STRICT \
         --js #{path_to(filename)} \
@@ -342,9 +329,9 @@ end
 
 
 def start_testacular(config, singleRun, browsers, misc_options)
-  sh "testacular start " +
+  sh "./node_modules/testacular/bin/testacular start " +
                 "#{config} " +
                 "#{'--single-run=true' if singleRun} " +
                 "#{'--browsers=' + browsers.gsub('+', ',') if browsers} " +
-                "#{misc_options}"
+                "#{(misc_options || '').gsub('+', ',')}"
 end

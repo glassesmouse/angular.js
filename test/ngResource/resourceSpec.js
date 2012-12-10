@@ -9,7 +9,7 @@ describe("resource", function() {
     $resource = $injector.get('$resource');
     CreditCard = $resource('/CreditCard/:id:verb', {id:'@id.key'}, {
       charge:{
-        method:'POST',
+        method:'post',
         params:{verb:'!charge'}
       },
       patch: {
@@ -119,6 +119,17 @@ describe("resource", function() {
     var item = LineItem.get({id: 456});
     $httpBackend.flush();
     expect(item).toEqualData({id:'abc'});
+  });
+
+
+  it('should not pass default params between actions', function() {
+    var R = $resource('/Path', {}, {get: {method: 'GET', params: {objId: '1'}}, perform: {method: 'GET'}});
+
+    $httpBackend.expect('GET', '/Path?objId=1').respond('{}');
+    $httpBackend.expect('GET', '/Path').respond('{}');
+
+    R.get({});
+    R.perform({});
   });
 
 
@@ -342,6 +353,35 @@ describe("resource", function() {
     var visa = Visa.get({id:123});
     $httpBackend.flush();
     expect(visa).toEqualData({id:123});
+  });
+
+
+  it('should support dynamic default parameters (global)', function() {
+    var currentGroup = 'students',
+        Person = $resource('/Person/:group/:id', { group: function() { return currentGroup; }});
+
+
+    $httpBackend.expect('GET', '/Person/students/fedor').respond({id: 'fedor', email: 'f@f.com'});
+
+    var fedor = Person.get({id: 'fedor'});
+    $httpBackend.flush();
+
+    expect(fedor).toEqualData({id: 'fedor', email: 'f@f.com'});
+  });
+
+
+  it('should support dynamic default parameters (action specific)', function() {
+    var currentGroup = 'students',
+        Person = $resource('/Person/:group/:id', {}, {
+          fetch: {method: 'GET', params: {group: function() { return currentGroup; }}}
+        });
+
+    $httpBackend.expect('GET', '/Person/students/fedor').respond({id: 'fedor', email: 'f@f.com'});
+
+    var fedor = Person.fetch({id: 'fedor'});
+    $httpBackend.flush();
+
+    expect(fedor).toEqualData({id: 'fedor', email: 'f@f.com'});
   });
 
 
