@@ -54,6 +54,7 @@
  * - [replaceWith()](http://api.jquery.com/replaceWith/)
  * - [text()](http://api.jquery.com/text/)
  * - [toggleClass()](http://api.jquery.com/toggleClass/)
+ * - [triggerHandler()](http://api.jquery.com/triggerHandler/) - Doesn't pass native event objects to handlers.
  * - [unbind()](http://api.jquery.com/unbind/)
  * - [val()](http://api.jquery.com/val/)
  * - [wrap()](http://api.jquery.com/wrap/)
@@ -129,12 +130,7 @@ function JQLitePatchJQueryRemove(name, dispatchThis) {
       for(setIndex = 0, setLength = set.length; setIndex < setLength; setIndex++) {
         element = jqLite(set[setIndex]);
         if (fireEvent) {
-          events = element.data('events');
-          if ( (fns = events && events.$destroy) ) {
-            forEach(fns, function(fn){
-              fn.handler();
-            });
-          }
+          element.triggerHandler('$destroy');
         } else {
           fireEvent = !fireEvent;
         }
@@ -266,9 +262,9 @@ function JQLiteHasClass(element, selector) {
       indexOf( " " + selector + " " ) > -1);
 }
 
-function JQLiteRemoveClass(element, selector) {
-  if (selector) {
-    forEach(selector.split(' '), function(cssClass) {
+function JQLiteRemoveClass(element, cssClasses) {
+  if (cssClasses) {
+    forEach(cssClasses.split(' '), function(cssClass) {
       element.className = trim(
           (" " + element.className + " ")
           .replace(/[\n\t]/g, " ")
@@ -278,9 +274,9 @@ function JQLiteRemoveClass(element, selector) {
   }
 }
 
-function JQLiteAddClass(element, selector) {
-  if (selector) {
-    forEach(selector.split(' '), function(cssClass) {
+function JQLiteAddClass(element, cssClasses) {
+  if (cssClasses) {
+    forEach(cssClasses.split(' '), function(cssClass) {
       if (!JQLiteHasClass(element, cssClass)) {
         element.className = trim(element.className + ' ' + trim(cssClass));
       }
@@ -663,8 +659,9 @@ forEach({
 
   append: function(element, node) {
     forEach(new JQLite(node), function(child){
-      if (element.nodeType === 1)
+      if (element.nodeType === 1 || element.nodeType === 11) {
         element.appendChild(child);
+      }
     });
   },
 
@@ -728,7 +725,15 @@ forEach({
     return element.getElementsByTagName(selector);
   },
 
-  clone: JQLiteClone
+  clone: JQLiteClone,
+
+  triggerHandler: function(element, eventName) {
+    var eventFns = (JQLiteExpandoStore(element, 'events') || {})[eventName];
+
+    forEach(eventFns, function(fn) {
+      fn.call(element, null);
+    });
+  }
 }, function(fn, name){
   /**
    * chaining functions
